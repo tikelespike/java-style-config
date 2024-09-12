@@ -185,7 +185,8 @@
     <!-- Miscellaneous other checks.                   -->
     <!-- See https://checkstyle.org/checks/misc/index.html -->
     <module name="ArrayTypeStyle"/>
-    <module name="FinalParameters"/>
+    <!-- Disabled, while in principle very clean, marking all parameters as final clutters the code with too much information-free noise -->
+    <!-- module name="FinalParameters"/ -->
     <module name="TodoComment"/>
     <module name="UpperEll"/>
 
