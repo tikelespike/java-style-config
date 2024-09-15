@@ -11,7 +11,8 @@ echo "Codestyle pre-commit check enabled."
 
 # Configuration
 NO_FORMATTING_WHEN_CHECKSTYLE_OK=false # Set this to true to skip the (slow) IntelliJ autoformatter when there are no checkstyle violations on the changed files
-ALLOW_IGNORE_CHECKSTYLE=false # Set this to true to allow committing even if this results in checking in checkstyle violations (warning will be shown)
+USE_AUTOFORMATTER=true # Set this to false to only run checkstyle and abort directly if violations are found (even if they could be fixed by running the autoformatter)
+ALLOW_IGNORE_CHECKSTYLE=true # Set this to true to allow committing even if this results in checking in checkstyle violations (warning will be shown)
 
 STYLE_REPO=$(dirname $0)
 AUTOFORMATTER=$STYLE_REPO/autoformatter.sh
@@ -34,8 +35,8 @@ print_error() {
 }
 
 # Check if required tools are available
-if ! command -v $AUTOFORMATTER &> /dev/null; then
-    print_error "Codestyle pre-commit validation is enabled, but the IntelliJ IDEA command-line formatter (autoformatter.sh) could not be found. Please fix this or disable this hook."
+if [ "$USE_AUTOFORMATTER" = true ] && [ ! command -v $AUTOFORMATTER &> /dev/null ]; then
+    print_error "Codestyle pre-commit validation is enabled, but the IntelliJ IDEA command-line formatter (autoformatter.sh) could not be found. Please make sure autoformatter.sh exists and works, set USE_AUTOFORMATTER to false to skip the autoformatter, or disable this hook completely."
     exit 1
 fi
 
@@ -50,6 +51,46 @@ FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.java$')
 if [ -z "$FILES" ]; then
     echo "No Java files changed."
     exit 0
+fi
+
+# If autoformatter disabled, simply run checkstyle on all files
+if [ "$USE_AUTOFORMATTER" = false ]; then
+    CHECKSTYLE_VIOLATION_FILES=()
+    CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=false
+    [ -e "$CHECKSTYLE_LOG_ORIGINAL" ] && rm "$CHECKSTYLE_LOG_ORIGINAL"
+    for FILE in $FILES; do
+        ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
+        echo "File: $ORIGINAL_FILE" >> "$CHECKSTYLE_LOG_ORIGINAL"
+        checkstyle -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &>> "$CHECKSTYLE_LOG_ORIGINAL"
+        if [ $? -ne 0 ]; then
+            CHECKSTYLE_VIOLATION_FILES+=("$FILE")
+            CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=true
+        fi
+        echo "" >> "$CHECKSTYLE_LOG_FORMATTED"
+    done
+    
+    if [ "$CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES" = false ]; then
+        exit 0
+    fi
+    
+    echo ""
+    print_error "Checkstyle violations found in the following file(s):"
+    for FILE in "${CHECKSTYLE_VIOLATION_FILES[@]}"; do
+        print_error "    $FILE"
+    done
+    echo ""
+    
+    if [ "$ALLOW_IGNORE_CHECKSTYLE" = true ]; then
+        echo -n "There are checkstyle violations. Commit anyway (y/n)? "
+        read COMMIT_WITH_VIOLATIONS < /dev/tty
+
+        if [ "$COMMIT_WITH_VIOLATIONS" != "${COMMIT_WITH_VIOLATIONS#[Yy]}" ]; then
+            exit 0
+        fi
+    fi
+    
+    print_error "Commit cancelled. Please fix the checkstyle issues."
+    exit 1
 fi
 
 # If corresponding setting enabled, skip autoformatter when no checkstyle violations are found
