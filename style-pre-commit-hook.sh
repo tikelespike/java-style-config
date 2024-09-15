@@ -21,6 +21,14 @@ AUTOFORMATTER_CONFIG=$STYLE_REPO/autoformat_intellij.xml
 CHECKSTYLE_LOG_FORMATTED=$STYLE_REPO/checkstyle-log-formatted.txt
 CHECKSTYLE_LOG_ORIGINAL=$STYLE_REPO/checkstyle-log-original.txt
 
+USER_OPTION_APPLY_WITH_VIOLATION="Apply Formatter & Commit (VIOLATES CHECKSTYLE!)"
+USER_OPTION_APPLY_NO_VIOLATION="Apply Formatter & Commit"
+USER_OPTION_DIFF="View Formatter Diff"
+USER_OPTION_CANCEL="Cancel Commit"
+USER_OPTION_COMMIT_NO_FORMATTING_WITH_VIOLATION="Commit Without Formatting (VIOLATES CHECKSTYLE!)"
+USER_OPTION_COMMIT_NO_FORMATTING_NO_VIOLATION="Commit Without Formatting"
+
+
 print_error() {
     echo -e "\033[31m""$@" "\033[0m" >&2
 }
@@ -67,12 +75,13 @@ fi
 # Create a temporary directory for autoformatted files
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
+WORKING_COPY_DIR=$TEMP_DIR/working-copy
 
 # Create temporary copies of all changed java files
 TEMP_COPIES=()
 for FILE in $FILES; do
     ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
-    TEMP_FILE="$TEMP_DIR/working-copy/$FILE"
+    TEMP_FILE="$WORKING_COPY_DIR/$FILE"
     mkdir -p "$(dirname "$TEMP_FILE")"
     cp "$ORIGINAL_FILE" "$TEMP_FILE"
     TEMP_COPIES+=("$TEMP_FILE")
@@ -87,7 +96,7 @@ CHECKSTYLE_VIOLATION_FILES=()
 CHECKSTYLE_VIOLATIONS_ON_FORMATTED_FILES=false
 [ -e "$CHECKSTYLE_LOG_FORMATTED" ] && rm "$CHECKSTYLE_LOG_FORMATTED"
 for FILE in $FILES; do
-    TEMP_FILE="$TEMP_DIR/working-copy/$FILE"
+    TEMP_FILE="$WORKING_COPY_DIR/$FILE"
     echo "File: $TEMP_FILE" >> "$CHECKSTYLE_LOG_FORMATTED"
     checkstyle -c "$CHECKSTYLE_CONFIG" "$TEMP_FILE" &>> "$CHECKSTYLE_LOG_FORMATTED"
     if [ $? -ne 0 ]; then
@@ -113,7 +122,7 @@ fi
 FILES_TO_FORMAT=()
 for FILE in $FILES; do
     ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
-    TEMP_FILE="$TEMP_DIR/working-copy/$FILE"
+    TEMP_FILE="$WORKING_COPY_DIR/$FILE"
 
     # Compare original and formatted files
     if ! cmp -s "$ORIGINAL_FILE" "$TEMP_FILE"; then
@@ -165,16 +174,16 @@ fi
 # Prompt the user about the proposed changes
 USER_OPTIONS=()
 if [ "$CHECKSTYLE_VIOLATIONS_ON_FORMATTED_FILES" = true ]; then
-    USER_OPTIONS+=("Apply Formatter & Commit (VIOLATES CHECKSTYLE!)")
+    USER_OPTIONS+=("$USER_OPTION_APPLY_WITH_VIOLATION")
 else
-    USER_OPTIONS+=("Apply Formatter & Commit")
+    USER_OPTIONS+=("$USER_OPTION_APPLY_NO_VIOLATION")
 fi
-USER_OPTIONS+=("View Diff" "Cancel Commit")
+USER_OPTIONS+=("$USER_OPTION_DIFF" "$USER_OPTION_CANCEL")
 if [ "$CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES" = false ]; then
-    USER_OPTIONS+=("Commit Without Formatting")
+    USER_OPTIONS+=("$USER_OPTION_COMMIT_NO_FORMATTING_NO_VIOLATION")
 fi
 if [ "$CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES" = true ] && [ "$ALLOW_IGNORE_CHECKSTYLE" = true ]; then
-    USER_OPTIONS+=("Commit Without Formatting (VIOLATES CHECKSTYLE!)")
+    USER_OPTIONS+=("$USER_OPTION_COMMIT_NO_FORMATTING_WITH_VIOLATION")
 fi
 QUERY_USER=true
 while [ "$QUERY_USER" = true ]; do
@@ -187,32 +196,35 @@ while [ "$QUERY_USER" = true ]; do
     fi
     select CHOICE in "${USER_OPTIONS[@]}"; do
         case $CHOICE in
-            "Apply Formatter & Commit"|"Apply Formatter & Commit (VIOLATES CHECKSTYLE!)")
+            "$USER_OPTION_APPLY_NO_VIOLATION"|"$USER_OPTION_APPLY_WITH_VIOLATION")
                 for FILE in "${FILES_TO_FORMAT[@]}"; do
                     ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
-                    TEMP_FILE="$TEMP_DIR/working-copy/$FILE"
+                    TEMP_FILE="$WORKING_COPY_DIR/$FILE"
                     cp "$TEMP_FILE" "$ORIGINAL_FILE"
                     git add "$ORIGINAL_FILE"
                 done
                 QUERY_USER=false
                 break
                 ;;
-            "View Diff")
-                mkdir "$TEMP_DIR/original-files" # Original files (but new/changed only) without autoformatting to compare
-                for FILE in $FILES; do
-                    echo "File: $FILE"
-                    ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
-                    mkdir -p "$(dirname "$TEMP_DIR/original-files/$FILE")"
-                    cp "$ORIGINAL_FILE" "$TEMP_DIR/original-files/$FILE"
-                done
-                git diff --no-index "$TEMP_DIR/original-files" "$TEMP_DIR/working-copy" 
+            "$USER_OPTION_DIFF")
+                ORIGINAL_FILES_DIR="$TEMP_DIR/original-files"
+                if [ ! -d "$ORIGINAL_FILES_DIR" ]; then
+                    mkdir "$ORIGINAL_FILES_DIR" # Original files (but new/changed only) without autoformatting to compare
+                    for FILE in $FILES; do
+                        echo "File: $FILE"
+                        ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
+                        mkdir -p "$(dirname "$ORIGINAL_FILES_DIR/$FILE")"
+                        cp "$ORIGINAL_FILE" "$ORIGINAL_FILES_DIR/$FILE"
+                    done
+                fi
+                git diff --no-index "$ORIGINAL_FILES_DIR" "$WORKING_COPY_DIR" 
                 break
                 ;;
-            "Commit Without Formatting"|"Commit Without Formatting (VIOLATES CHECKSTYLE!)")
+            "$USER_OPTION_COMMIT_NO_FORMATTING_NO_VIOLATION"|"$USER_OPTION_COMMIT_NO_FORMATTING_WITH_VIOLATION")
                 QUERY_USER=false
                 break
                 ;;
-            "Cancel Commit")
+            "$USER_OPTION_CANCEL")
                 print_error "Commit cancelled."
                 exit 1
                 ;;
