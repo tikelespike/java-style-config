@@ -28,18 +28,18 @@ USER_OPTION_CANCEL="Cancel Commit"
 USER_OPTION_COMMIT_NO_FORMATTING_WITH_VIOLATION="Commit Without Formatting (VIOLATES CHECKSTYLE!)"
 USER_OPTION_COMMIT_NO_FORMATTING_NO_VIOLATION="Commit Without Formatting"
 
-LOG_PREFIX="[STYLE]"
+LOG_PREFIX=""
 
 print_info() {
-    echo "$LOG_PREFIX" "$@"
+    echo "$LOG_PREFIX""$@"
 }
 
 print_info_inline() {
-    echo -n "$LOG_PREFIX" "$@"
+    echo -n "$LOG_PREFIX""$@"
 }
 
 print_error() {
-    echo -e "$LOG_PREFIX" "\033[31m""$@""\033[0m" >&2
+    echo -e "$LOG_PREFIX""\033[31m""$@""\033[0m" >&2
 }
 
 print_info "Java codestyle pre-commit hook enabled."
