@@ -1,3 +1,16 @@
+<!-- TOC start (generated with https://github.com/derlin/bitdowntoc) -->
+
+- [Java Codestyle Commit Hook](#java-codestyle-commit-hook)
+   * [Setup](#setup)
+      + [Prerequisites](#prerequisites)
+      + [Installation](#installation)
+   * [Usage and Configuration](#usage-and-configuration)
+      + [Settings](#settings)
+      + [Example](#example)
+
+<!-- TOC end -->
+
+<!-- TOC --><a name="java-codestyle-commit-hook"></a>
 # Java Codestyle Commit Hook
 
 ![image](https://github.com/user-attachments/assets/5388e632-6850-41f7-ae0d-dbbb40734b60)
@@ -9,13 +22,16 @@ The script is tested on Ubuntu 20.04. I cannot guarantee its functionality on ot
 
 This repository also contains example checkstyle and IntelliJ formatter configurations (tuned to my personal preferences) to get you started. Of course, you can also point the script to use your own configurations.
 
+<!-- TOC --><a name="setup"></a>
 ## Setup
 
+<!-- TOC --><a name="prerequisites"></a>
 ### Prerequisites
 
 - If you intend to use the autoformatting feature, you need to have [IntelliJ IDEA](https://jetbrains.com/idea) installed.
 - If you intend to use the checkstyle feature, you need to have [Checkstyle](https://checkstyle.sourceforge.io/) installed. You can do so by running `sudo apt-get install checkstyle`.
 
+<!-- TOC --><a name="installation"></a>
 ### Installation
 
 1. Clone this repository:
@@ -33,6 +49,7 @@ This repository also contains example checkstyle and IntelliJ formatter configur
 4. Try to run a git commit in the project repo and see if it works!
 5. If you want, you can configure the hook as described below.
 
+<!-- TOC --><a name="usage-and-configuration"></a>
 ## Usage and Configuration
 
 By default, the script will (on every git commit):
@@ -49,6 +66,7 @@ To change a setting, make sure the corresponding environment variable is set acc
 export ALLOW_IGNORE_CHECKSTYLE=true # I am not a child, let me decide for myself if I want to adhere to checkstyle or not
 ```
 
+<!-- TOC --><a name="settings"></a>
 ### Settings
 
 | Variable                           | Allowed Values                                                                 | Default Value                                               | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -60,6 +78,7 @@ export ALLOW_IGNORE_CHECKSTYLE=true # I am not a child, let me decide for myself
 | `ALLOW_IGNORE_CHECKSTYLE`          | `true`, `false`                                                                | `false`                                                     | If true, you can always force to commit anyways, but you will still be warned that you are violating checkstyle. Has no effect if `USE_CHECKSTYLE` is false.                                                                                                                                                                                                                                                                                                                                                                          |
 | `NO_FORMATTING_WHEN_CHECKSTYLE_OK` | `true`, `false`                                                                | `false`                                                     | Set this to true to skip running the autoformatter if there are no checkstyle violations. The use case is that you only care about checkstyle, but like that some checkstyle issues can be fixed automatically be applying the autoformatter. This saves time because the autoformatter is not always run, but will not detect if you are checking in code that is not yet formatted by the autoformatter (if this doesn't lead to checkstyle violations). Has no effect if either `USE_CHECKSTYLE` or `USE_AUTOFORMATTER` are false. |
 
+<!-- TOC --><a name="example"></a>
 ### Example
 
 Example `pre-commit` file:
