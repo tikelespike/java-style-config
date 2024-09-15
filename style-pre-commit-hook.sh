@@ -11,7 +11,7 @@
 NO_FORMATTING_WHEN_CHECKSTYLE_OK="${NO_FORMATTING_WHEN_CHECKSTYLE_OK:-false}" # Set this to true to skip the (slow) IntelliJ autoformatter when there are no checkstyle violations on the changed files
 USE_AUTOFORMATTER="${USE_AUTOFORMATTER:-true}" # Set this to false to only run checkstyle and abort directly if violations are found (even if they could be fixed by running the autoformatter)
 USE_CHECKSTYLE="${USE_CHECKSTYLE:-true}" # Set this to false to disable checkstyle and only apply the autoformatter
-ALLOW_IGNORE_CHECKSTYLE="${ALLOW_IGNORE_CHECKSTYLE:-true}" # Set this to true to allow committing even if this results in checking in checkstyle violations (warning will be shown)
+ALLOW_IGNORE_CHECKSTYLE="${ALLOW_IGNORE_CHECKSTYLE:-false}" # Set this to true to allow committing even if this results in checking in checkstyle violations (warning will be shown)
 
 STYLE_REPO=$(dirname $0)
 CHECKSTYLE_CONFIG="${CHECKSTYLE_CONFIG:-$STYLE_REPO/checkstyle.xml}" # Change this to use a different checkstyle configuration
