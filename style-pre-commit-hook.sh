@@ -7,20 +7,20 @@
 # checkstyle-compliant after applying the autoformatter, the user can accept to
 # automatically apply the formatter.
 
-# Configuration
-NO_FORMATTING_WHEN_CHECKSTYLE_OK=false # Set this to true to skip the (slow) IntelliJ autoformatter when there are no checkstyle violations on the changed files
-USE_AUTOFORMATTER=true # Set this to false to only run checkstyle and abort directly if violations are found (even if they could be fixed by running the autoformatter)
-USE_CHECKSTYLE=true # Set this to false to disable checkstyle and only apply the autoformatter
-ALLOW_IGNORE_CHECKSTYLE=true # Set this to true to allow committing even if this results in checking in checkstyle violations (warning will be shown)
+# Configuration default values
+NO_FORMATTING_WHEN_CHECKSTYLE_OK="${NO_FORMATTING_WHEN_CHECKSTYLE_OK:-false}" # Set this to true to skip the (slow) IntelliJ autoformatter when there are no checkstyle violations on the changed files
+USE_AUTOFORMATTER="${USE_AUTOFORMATTER:-true}" # Set this to false to only run checkstyle and abort directly if violations are found (even if they could be fixed by running the autoformatter)
+USE_CHECKSTYLE="${USE_CHECKSTYLE:-true}" # Set this to false to disable checkstyle and only apply the autoformatter
+ALLOW_IGNORE_CHECKSTYLE="${ALLOW_IGNORE_CHECKSTYLE:-true}" # Set this to true to allow committing even if this results in checking in checkstyle violations (warning will be shown)
 
 STYLE_REPO=$(dirname $0)
-AUTOFORMATTER=$STYLE_REPO/autoformatter.sh
-CHECKSTYLE_CONFIG=$STYLE_REPO/checkstyle.xml
-AUTOFORMATTER_CONFIG=$STYLE_REPO/autoformat_intellij.xml
+CHECKSTYLE_CONFIG="${CHECKSTYLE_CONFIG:-$STYLE_REPO/checkstyle.xml}" # Change this to use a different checkstyle configuration
+AUTOFORMATTER_CONFIG="${AUTOFORMATTER_CONFIG:-$STYLE_REPO/autoformat_intellij.xml}" # Change this to use a different checkstyle configuration
 
+# Constants
 CHECKSTYLE_LOG_FORMATTED=$STYLE_REPO/checkstyle-log-formatted.txt
 CHECKSTYLE_LOG_ORIGINAL=$STYLE_REPO/checkstyle-log-original.txt
-
+AUTOFORMATTER=$STYLE_REPO/autoformatter.sh
 USER_OPTION_APPLY_WITH_VIOLATION="Apply Formatter & Commit (VIOLATES CHECKSTYLE!)"
 USER_OPTION_APPLY_NO_VIOLATION="Apply Formatter & Commit"
 USER_OPTION_DIFF="View Formatter Diff"
@@ -75,7 +75,7 @@ if [ "$USE_AUTOFORMATTER" = false ]; then
     [ -e "$CHECKSTYLE_LOG_ORIGINAL" ] && rm "$CHECKSTYLE_LOG_ORIGINAL"
     for FILE in $FILES; do
         ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
-        print_info "File: $ORIGINAL_FILE" >> "$CHECKSTYLE_LOG_ORIGINAL"
+        echo "File: $ORIGINAL_FILE" >> "$CHECKSTYLE_LOG_ORIGINAL"
         checkstyle -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &>> "$CHECKSTYLE_LOG_ORIGINAL"
         if [ $? -ne 0 ]; then
             CHECKSTYLE_VIOLATION_FILES+=("$FILE")
@@ -154,7 +154,7 @@ if [ "$USE_CHECKSTYLE" = true ]; then
     [ -e "$CHECKSTYLE_LOG_FORMATTED" ] && rm "$CHECKSTYLE_LOG_FORMATTED"
     for FILE in $FILES; do
         TEMP_FILE="$WORKING_COPY_DIR/$FILE"
-        print_info "File: $TEMP_FILE" >> "$CHECKSTYLE_LOG_FORMATTED"
+        echo "File: $TEMP_FILE" >> "$CHECKSTYLE_LOG_FORMATTED"
         checkstyle -c "$CHECKSTYLE_CONFIG" "$TEMP_FILE" &>> "$CHECKSTYLE_LOG_FORMATTED"
         if [ $? -ne 0 ]; then
             CHECKSTYLE_VIOLATION_FILES+=("$FILE")
@@ -226,7 +226,7 @@ if [ "$CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES" = unknown ]; then
     CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=false
     for FILE in $FILES; do
         ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
-        print_info "File: $ORIGINAL_FILE" >> "$CHECKSTYLE_LOG_ORIGINAL"
+        echo "File: $ORIGINAL_FILE" >> "$CHECKSTYLE_LOG_ORIGINAL"
         checkstyle -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &>> "$CHECKSTYLE_LOG_ORIGINAL"
         if [ $? -ne 0 ]; then
             CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=true
@@ -276,7 +276,6 @@ while [ "$QUERY_USER" = true ]; do
                 if [ ! -d "$ORIGINAL_FILES_DIR" ]; then
                     mkdir "$ORIGINAL_FILES_DIR" # Original files (but new/changed only) without autoformatting to compare
                     for FILE in $FILES; do
-                        print_info "File: $FILE"
                         ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
                         mkdir -p "$(dirname "$ORIGINAL_FILES_DIR/$FILE")"
                         cp "$ORIGINAL_FILE" "$ORIGINAL_FILES_DIR/$FILE"
