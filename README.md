@@ -1,5 +1,8 @@
 # Java Codestyle Commit Hook
 
+![image](https://github.com/user-attachments/assets/5388e632-6850-41f7-ae0d-dbbb40734b60)
+
+
 Never accidentally overlook code style violations in your Java code again! The script in this repository allows you to configure your local git installation in a way that prevents you from accidentally committing code that violates a checkstyle configuration. If you use IntelliJ IDEA, it can also ensure your autoformatter is applied correctly while checking in files.
 
 The script is tested on Ubuntu 20.04. I cannot guarantee its functionality on other distributions.
