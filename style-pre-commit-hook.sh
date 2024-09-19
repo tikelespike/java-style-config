@@ -20,7 +20,12 @@ AUTOFORMATTER_CONFIG="${AUTOFORMATTER_CONFIG:-$STYLE_REPO/autoformat_intellij.xm
 # Constants
 CHECKSTYLE_LOG_FORMATTED=$STYLE_REPO/checkstyle-log-formatted.txt
 CHECKSTYLE_LOG_ORIGINAL=$STYLE_REPO/checkstyle-log-original.txt
+AUTOFORMATTER_LOG=$STYLE_REPO/autoformatter-log.txt
 AUTOFORMATTER=$STYLE_REPO/autoformatter.sh
+CHECKSTYLE=checkstyle
+if [ -f $STYLE_REPO/checkstyle.sh ]; then
+    CHECKSTYLE=$STYLE_REPO/checkstyle.sh
+fi
 USER_OPTION_APPLY_WITH_VIOLATION="Apply Formatter & Commit (VIOLATES CHECKSTYLE!)"
 USER_OPTION_APPLY_NO_VIOLATION="Apply Formatter & Commit"
 USER_OPTION_DIFF="View Formatter Diff"
@@ -50,12 +55,12 @@ if [ "$USE_CHECKSTYLE" = false ] && [ "$USE_AUTOFORMATTER" = false ]; then
 fi
 
 # Check if required tools are available
-if [ "$USE_AUTOFORMATTER" = true ] && [ ! command -v $AUTOFORMATTER &> /dev/null ]; then
+if [ "$USE_AUTOFORMATTER" = true ] && [ ! $(command -v $AUTOFORMATTER) ]; then
     print_error "Codestyle pre-commit validation is enabled, but the IntelliJ IDEA command-line formatter (autoformatter.sh) could not be found. Please make sure autoformatter.sh exists and works, set USE_AUTOFORMATTER to false to skip the autoformatter, or disable this hook completely."
     exit 1
 fi
 
-if [ "$USE_CHECKSTYLE" = true ] && [ ! command -v checkstyle &> /dev/null ]; then
+if [ "$USE_CHECKSTYLE" = true ] && [ ! $(command -v $CHECKSTYLE) ]; then
     print_error "Codestyle pre-commit validation is enabled, but checkstyle could not be found. Please install checkstyle, set USE_CHECKSTYLE to false to disable checkstyle, or disable this hook completely."
     exit 1
 fi
@@ -77,7 +82,7 @@ if [ "$USE_AUTOFORMATTER" = false ]; then
     for FILE in $FILES; do
         ORIGINAL_FILE=$REPO_DIR/$FILE
         echo "File: $ORIGINAL_FILE" >> "$CHECKSTYLE_LOG_ORIGINAL"
-        checkstyle -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &>> "$CHECKSTYLE_LOG_ORIGINAL"
+        $CHECKSTYLE -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &>> "$CHECKSTYLE_LOG_ORIGINAL"
         if [ $? -ne 0 ]; then
             CHECKSTYLE_VIOLATION_FILES+=("$FILE")
             CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=true
@@ -116,7 +121,7 @@ if [ "$USE_CHECKSTYLE" = true ] && [ "$NO_FORMATTING_WHEN_CHECKSTYLE_OK" = true 
     CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=false
     for FILE in $FILES; do
         ORIGINAL_FILE=$REPO_DIR/$FILE
-        checkstyle -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &> /dev/null
+        $CHECKSTYLE -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &> "$CHECKSTYLE_LOG_ORIGINAL"
         if [ $? -ne 0 ]; then
             print_info "Checkstyle violation found in file $FILE."
             CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=true
@@ -146,7 +151,7 @@ done
 
 # Run IntelliJ formatter on temp copies
 print_info "Running autoformatter, this can take a few seconds..."
-$AUTOFORMATTER -s $AUTOFORMATTER_CONFIG "${TEMP_COPIES[@]}" &> /dev/null
+$AUTOFORMATTER -s $AUTOFORMATTER_CONFIG "${TEMP_COPIES[@]}" &> "$AUTOFORMATTER_LOG"
 
 
 ORIGINAL_FILES_DIR="$TEMP_DIR/original-files"
@@ -181,7 +186,7 @@ if [ "$USE_CHECKSTYLE" = true ]; then
     for FILE in $FILES; do
         FORMATTED_FILE=$REPO_DIR/$FILE
         echo "File: $FORMATTED_FILE (with temporarily applied autoformatter)" >> "$CHECKSTYLE_LOG_FORMATTED"
-        checkstyle -c "$CHECKSTYLE_CONFIG" "$FORMATTED_FILE" &>> "$CHECKSTYLE_LOG_FORMATTED"
+        $CHECKSTYLE -c "$CHECKSTYLE_CONFIG" "$FORMATTED_FILE" &>> "$CHECKSTYLE_LOG_FORMATTED"
         if [ $? -ne 0 ]; then
             CHECKSTYLE_VIOLATION_FILES+=("$FILE")
             CHECKSTYLE_VIOLATIONS_ON_FORMATTED_FILES=true
@@ -259,7 +264,7 @@ if [ "$CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES" = unknown ]; then
     for FILE in $FILES; do
         ORIGINAL_FILE=$REPO_DIR/$FILE
         echo "File: $ORIGINAL_FILE" >> "$CHECKSTYLE_LOG_ORIGINAL"
-        checkstyle -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &>> "$CHECKSTYLE_LOG_ORIGINAL"
+        $CHECKSTYLE -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &>> "$CHECKSTYLE_LOG_ORIGINAL"
         if [ $? -ne 0 ]; then
             CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=true
             break # We can skip checking other files because the user will now definitly have to accept the autoformatter
