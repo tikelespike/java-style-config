@@ -108,6 +108,7 @@
     </module>
     <module name="JavadocStyle"/>
     <module name="MissingJavadocMethod"/>
+    <module name="MissingJavadocPackage"/>
 
     <!-- Checks for Naming Conventions.                  -->
     <!-- See https://checkstyle.org/checks/naming/index.html -->
