@@ -62,6 +62,7 @@ fi
 
 # Get a list of changed or new Java files
 FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.java$')
+REPO_DIR=$(git rev-parse --show-toplevel)
 
 if [ -z "$FILES" ]; then
     print_info "No Java files changed."
@@ -74,7 +75,7 @@ if [ "$USE_AUTOFORMATTER" = false ]; then
     CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=false
     [ -e "$CHECKSTYLE_LOG_ORIGINAL" ] && rm "$CHECKSTYLE_LOG_ORIGINAL"
     for FILE in $FILES; do
-        ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
+        ORIGINAL_FILE=$REPO_DIR/$FILE
         echo "File: $ORIGINAL_FILE" >> "$CHECKSTYLE_LOG_ORIGINAL"
         checkstyle -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &>> "$CHECKSTYLE_LOG_ORIGINAL"
         if [ $? -ne 0 ]; then
@@ -114,7 +115,7 @@ if [ "$USE_CHECKSTYLE" = true ] && [ "$NO_FORMATTING_WHEN_CHECKSTYLE_OK" = true 
     print_info "Running checkstyle..."
     CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=false
     for FILE in $FILES; do
-        ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
+        ORIGINAL_FILE=$REPO_DIR/$FILE
         checkstyle -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &> /dev/null
         if [ $? -ne 0 ]; then
             print_info "Checkstyle violation found in file $FILE."
@@ -136,7 +137,7 @@ WORKING_COPY_DIR=$TEMP_DIR/working-copy
 # Create temporary copies of all changed java files
 TEMP_COPIES=()
 for FILE in $FILES; do
-    ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
+    ORIGINAL_FILE=$REPO_DIR/$FILE
     TEMP_FILE="$WORKING_COPY_DIR/$FILE"
     mkdir -p "$(dirname "$TEMP_FILE")"
     cp "$ORIGINAL_FILE" "$TEMP_FILE"
@@ -147,21 +148,52 @@ done
 print_info "Running autoformatter, this can take a few seconds..."
 $AUTOFORMATTER -s $AUTOFORMATTER_CONFIG "${TEMP_COPIES[@]}" &> /dev/null
 
+
+ORIGINAL_FILES_DIR="$TEMP_DIR/original-files"
+ensure_copy_original_exists() {
+    if [ ! -d "$ORIGINAL_FILES_DIR" ]; then
+        mkdir "$ORIGINAL_FILES_DIR" # Original files (but new/changed only) without autoformatting to compare
+        for FILE in $FILES; do
+            ORIGINAL_FILE=$REPO_DIR/$FILE
+            mkdir -p "$(dirname "$ORIGINAL_FILES_DIR/$FILE")"
+            cp "$ORIGINAL_FILE" "$ORIGINAL_FILES_DIR/$FILE"
+        done
+    fi
+}
+
 # Early reject if there are checkstyle issues even after applying the autoformatter
 CHECKSTYLE_VIOLATION_FILES=()
 CHECKSTYLE_VIOLATIONS_ON_FORMATTED_FILES=false
 if [ "$USE_CHECKSTYLE" = true ]; then
-    [ -e "$CHECKSTYLE_LOG_FORMATTED" ] && rm "$CHECKSTYLE_LOG_FORMATTED"
+    # Because checkstyle compliance of a file depends not only on that files content but also the other
+    # files it refers to (e.g. inherited JavaDoc, package-info next to class etc) we need to temporarily
+    # copy the formatted files into the repo 
+    ensure_copy_original_exists
+    print_info "Warning: Interrupting now may result in an incoherent repo state, please wait..."
+    
     for FILE in $FILES; do
         TEMP_FILE="$WORKING_COPY_DIR/$FILE"
-        echo "File: $TEMP_FILE" >> "$CHECKSTYLE_LOG_FORMATTED"
-        checkstyle -c "$CHECKSTYLE_CONFIG" "$TEMP_FILE" &>> "$CHECKSTYLE_LOG_FORMATTED"
+        ORIGINAL_FILE=$REPO_DIR/$FILE
+        cp "$TEMP_FILE" "$ORIGINAL_FILE"
+    done
+
+    [ -e "$CHECKSTYLE_LOG_FORMATTED" ] && rm "$CHECKSTYLE_LOG_FORMATTED"
+    for FILE in $FILES; do
+        FORMATTED_FILE=$REPO_DIR/$FILE
+        echo "File: $FORMATTED_FILE (with temporarily applied autoformatter)" >> "$CHECKSTYLE_LOG_FORMATTED"
+        checkstyle -c "$CHECKSTYLE_CONFIG" "$FORMATTED_FILE" &>> "$CHECKSTYLE_LOG_FORMATTED"
         if [ $? -ne 0 ]; then
             CHECKSTYLE_VIOLATION_FILES+=("$FILE")
             CHECKSTYLE_VIOLATIONS_ON_FORMATTED_FILES=true
         fi
-        print_info "" >> "$CHECKSTYLE_LOG_FORMATTED"
+        echo "" >> "$CHECKSTYLE_LOG_FORMATTED"
     done
+    for FILE in $FILES; do
+        ORIGINAL_FILE_BACKUP=$ORIGINAL_FILES_DIR/$FILE
+        REPO_FILE=$REPO_DIR/$FILE
+        cp "$ORIGINAL_FILE_BACKUP" "$REPO_FILE"
+    done
+    print_info "Repository state restored."
     if [ "$CHECKSTYLE_VIOLATIONS_ON_FORMATTED_FILES" = true ]; then
         print_info ""
         print_error "Checkstyle violations found (with formatter applied) in the following file(s):"
@@ -179,7 +211,7 @@ fi
 # Determine changes made by formatter
 FILES_TO_FORMAT=()
 for FILE in $FILES; do
-    ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
+    ORIGINAL_FILE=$REPO_DIR/$FILE
     TEMP_FILE="$WORKING_COPY_DIR/$FILE"
 
     # Compare original and formatted files
@@ -225,7 +257,7 @@ if [ "$CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES" = unknown ]; then
     print_info "Running checkstyle on original files..."
     CHECKSTYLE_VIOLATIONS_ON_ORIGINAL_FILES=false
     for FILE in $FILES; do
-        ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
+        ORIGINAL_FILE=$REPO_DIR/$FILE
         echo "File: $ORIGINAL_FILE" >> "$CHECKSTYLE_LOG_ORIGINAL"
         checkstyle -c "$CHECKSTYLE_CONFIG" "$ORIGINAL_FILE" &>> "$CHECKSTYLE_LOG_ORIGINAL"
         if [ $? -ne 0 ]; then
@@ -263,7 +295,7 @@ while [ "$QUERY_USER" = true ]; do
         case $CHOICE in
             "$USER_OPTION_APPLY_NO_VIOLATION"|"$USER_OPTION_APPLY_WITH_VIOLATION")
                 for FILE in "${FILES_TO_FORMAT[@]}"; do
-                    ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
+                    ORIGINAL_FILE=$REPO_DIR/$FILE
                     TEMP_FILE="$WORKING_COPY_DIR/$FILE"
                     cp "$TEMP_FILE" "$ORIGINAL_FILE"
                     git add "$ORIGINAL_FILE"
@@ -272,15 +304,7 @@ while [ "$QUERY_USER" = true ]; do
                 break
                 ;;
             "$USER_OPTION_DIFF")
-                ORIGINAL_FILES_DIR="$TEMP_DIR/original-files"
-                if [ ! -d "$ORIGINAL_FILES_DIR" ]; then
-                    mkdir "$ORIGINAL_FILES_DIR" # Original files (but new/changed only) without autoformatting to compare
-                    for FILE in $FILES; do
-                        ORIGINAL_FILE=$(git rev-parse --show-toplevel)/$FILE
-                        mkdir -p "$(dirname "$ORIGINAL_FILES_DIR/$FILE")"
-                        cp "$ORIGINAL_FILE" "$ORIGINAL_FILES_DIR/$FILE"
-                    done
-                fi
+                ensure_copy_original_exists
                 git diff --no-index "$ORIGINAL_FILES_DIR" "$WORKING_COPY_DIR" 
                 break
                 ;;
