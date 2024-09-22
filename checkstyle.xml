@@ -194,7 +194,8 @@
     <module name="ArrayTypeStyle"/>
     <!-- Disabled, while in principle very clean, marking all parameters as final clutters the code with too much information-free noise -->
     <!-- module name="FinalParameters"/ -->
-    <module name="TodoComment"/>
+    <!-- Disabled, since checkstyle is validated on every commit and Todos are okay temporary -->
+    <!-- module name="TodoComment"/ -->
     <module name="UpperEll"/>
 
     <!-- https://checkstyle.org/filters/suppressionxpathfilter.html -->
