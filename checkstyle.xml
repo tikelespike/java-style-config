@@ -107,7 +107,9 @@
       <property name="scope" value="protected"/>
     </module>
     <module name="JavadocStyle"/>
-    <module name="MissingJavadocMethod"/>
+    <module name="MissingJavadocMethod">
+      <property name="scope" value="protected"/>
+    </module>
     <module name="MissingJavadocPackage"/>
     <module name="MissingJavadocType" />
 
