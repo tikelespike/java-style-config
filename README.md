@@ -40,14 +40,19 @@ This repository also contains example checkstyle and IntelliJ formatter configur
    git clone https://github.com/tikelespike/java-style-config.git
    ```
 2. If you want to use the autoformatter feature: Open the `autoformatter.sh` script with a text editor of your choice. If necessary, replace `intellij-idea-ultimate` with the command line name of your IntelliJ installation (for example, if you use the Community Edition of IntelliJ). You can also use the `idea.sh` script included in every IntelliJ installation here.
-3. In the git project repository where you want to use the hook (not this repository!), create the `.git/hooks/pre-commit` file if it does not exist yet. Make sure it contains (at least) the following (inserting your own path to this repo):
+3. In the git project repository where you want to use the hook (not this repository!), create the `.git/hooks/pre-commit` file if it does not exist yet, and make it executable:
+   ```sh
+   touch .git/hooks/pre-commit
+   chmod +x .git/hooks/pre-commit
+   ```
+5. Open the `pre-commit` file with a text editor of your choice and make sure it contains (at least) the following (inserting your own path to this repo):
    ```sh
    #!/bin/sh 
    set -e
    /path/to/java-style-config/style-pre-commit-hook.sh
    ```
-4. Try to run a git commit in the project repo and see if it works!
-5. If you want, you can configure the hook as described below.
+6. Try to run a git commit in the project repo and see if it works!
+7. If you want, you can configure the hook as described below.
 
 <!-- TOC --><a name="usage-and-configuration"></a>
 ## Usage and Configuration
